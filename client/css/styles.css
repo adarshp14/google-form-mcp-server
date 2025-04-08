@@ -1,0 +1,128 @@
+/* Google Forms MCP Client Styles */
+:root {
+    --bg-color: #121212;
+    --panel-bg: #1e1e1e;
+    --panel-border: #333333;
+    --text-color: #e0e0e0;
+    --highlight-color: #00ccff;
+    --secondary-highlight: #00ff9d;
+    --danger-color: #ff4757;
+    --warning-color: #ffa502;
+    --success-color: #2ed573;
+    --muted-color: #747d8c;
+}
+
+body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+}
+
+.container {
+    max-width: 800px;
+    padding: 30px;
+    background-color: var(--panel-bg);
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: var(--highlight-color);
+    margin-bottom: 10px;
+}
+
+h2 {
+    color: var(--secondary-highlight);
+    font-size: 1.4rem;
+    margin: 20px 0 15px 0;
+}
+
+p {
+    color: var(--muted-color);
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.button {
+    background-color: var(--highlight-color);
+    color: #000;
+    font-weight: 500;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: inline-block;
+}
+
+.button:hover {
+    background-color: #00a3cc;
+}
+
+.button-secondary {
+    background-color: transparent;
+    border: 1px solid var(--secondary-highlight);
+    color: var(--secondary-highlight);
+}
+
+.button-secondary:hover {
+    background-color: rgba(0, 255, 157, 0.1);
+}
+
+.status {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 4px;
+    display: none;
+}
+
+.status.loading {
+    background-color: rgba(255, 165, 2, 0.1);
+    color: var(--warning-color);
+    border: 1px solid var(--warning-color);
+}
+
+.status.success {
+    background-color: rgba(46, 213, 115, 0.1);
+    color: var(--success-color);
+    border: 1px solid var(--success-color);
+}
+
+.status.error {
+    background-color: rgba(255, 71, 87, 0.1);
+    color: var(--danger-color);
+    border: 1px solid var(--danger-color);
+}
+
+.footer {
+    margin-top: 50px;
+    color: var(--muted-color);
+    font-size: 0.8rem;
+}
+
+/* Animation */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 204, 255, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 204, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 204, 255, 0);
+    }
+}
+
+.pulse {
+    animation: pulse 1.5s infinite;
+}

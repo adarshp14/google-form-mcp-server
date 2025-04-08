@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Forms MCP Client</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Google Forms MCP Client</h1>
+        <p>This client connects to the Google Forms MCP Server and CamelAIOrg Agents to create forms using natural language.</p>
+        
+        <div class="server-status">
+            <h2>Server Status</h2>
+            <p>MCP Server: <span id="serverStatus">Unknown</span></p>
+        </div>
+        
+        <a href="http://localhost:5005" class="button pulse" id="connectButton">Connect to Server</a>
+        
+        <div class="status loading" id="loadingMessage">
+            Connecting to server...
+        </div>
+        
+        <div class="status error" id="errorMessage">
+            Could not connect to the server. Please make sure the MCP server is running.
+        </div>
+        
+        <div class="features">
+            <h2>Features</h2>
+            <ul>
+                <li>Create Google Forms with natural language</li>
+                <li>Multiple question types support</li>
+                <li>View form creation process in real-time</li>
+                <li>Monitor API requests and responses</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>Google Forms MCP Server with CamelAIOrg Agents Integration</p>
+        </div>
+    </div>
+    
+    <script src="js/main.js"></script>
+</body>
+</html>

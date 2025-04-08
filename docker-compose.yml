@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # MCP Server Service
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: google-form-mcp-server
+    ports:
+      - "5005:5000"
+    volumes:
+      - ./server:/app/server
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=development
+      - DEBUG=True
+      - AGENT_ENDPOINT=http://agents:5001/process
+    depends_on:
+      agents:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+  # CamelAIOrg Agents Service
+  agents:
+    build:
+      context: .
+      dockerfile: agents/Dockerfile
+    container_name: camelai-agents
+    ports:
+      - "5006:5001"
+    volumes:
+      - ./agents:/app/agents
+    environment:
+      - MCP_SERVER_URL=http://mcp-server:5000/api/process
+      - PORT=5001
+      - GOOGLE_API_KEY=AIzaSyBIsmrd3wqBRVMTMjO-AuFYDgxmwbV-y6I
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+networks:
+  mcp-network:
+    driver: bridge
