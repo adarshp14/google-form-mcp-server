@@ -37,7 +37,7 @@ services:
     environment:
       - MCP_SERVER_URL=http://mcp-server:5000/api/process
       - PORT=5001
-      - GOOGLE_API_KEY=AIzaSyBIsmrd3wqBRVMTMjO-AuFYDgxmwbV-y6I
+      - GOOGLE_API_KEY={{GOOGLE_API_KEY}}
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:5001/health"]
       interval: 10s
