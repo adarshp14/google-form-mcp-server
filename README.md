@@ -32,6 +32,63 @@ The system features a dark-themed UI with an animated visualization of the reque
 └─────────────┘    └─────────────┘    └────────────┘    └────────────┘
 ```
 
+### Process Flowchart
+
+This diagram illustrates how a user request flows through the system:
+
+```mermaid
+graph TD
+    subgraph "User Interface"
+        A[Frontend UI]
+    end
+
+    subgraph "Processing Logic"
+        B((CamelAIOrg Agent))
+        C((MCP Server))
+    end
+
+    subgraph "External Service"
+        D{{Google Forms API}}
+    end
+
+    A -- "1. User enters: 'Create feedback form'" --> B;
+    B -- "2. Interprets request & plans tool call<br/>Sends: {tool: 'create_form', title: 'Feedback'}" --> C;
+    C -- "3. Translates tool call to API request<br/>Sends: Google API POST /v1/forms" --> D;
+    D -- "4. Executes request<br/>Returns: {formId: '...', url: '...'}" --> C;
+    C -- "5. Processes API response<br/>Sends: {status: 'success', result: {...}}" --> B;
+    B -- "6. Formats final result<br/>Sends: Status update to UI" --> A;
+
+    style B fill:#f9d423,stroke:#333,stroke-width:2px,color:#333
+    style C fill:#8ecae6,stroke:#333,stroke-width:2px,color:#333
+```
+
+### Role of Components
+
+*   **Frontend UI:** Provides the user interface for inputting natural language requests and visualizing the process and results.
+*   **CamelAIOrg Agent (Highlighted Yellow):**
+    *   **Responsibility:** Interpretation and Planning.
+    *   Receives the raw natural language request.
+    *   Parses the request to understand the user's intent and extract key details (form title, questions, types, etc.).
+    *   Determines the sequence of actions (MCP tool calls) needed to fulfill the request.
+    *   Communicates with the MCP Server using the defined tool schema.
+*   **MCP Server (Highlighted Blue):**
+    *   **Responsibility:** Execution and Abstraction.
+    *   Receives structured tool calls from the Agent.
+    *   Acts as a dedicated interface to the Google Forms API.
+    *   Translates the abstract tool calls (e.g., `create_form`) into concrete Google Forms API requests.
+    *   Handles authentication, communication, and error handling with the Google Forms API.
+    *   Returns the results from the Google Forms API back to the Agent in a standardized MCP format.
+
+### Why is the MCP Server Needed?
+
+The Model Context Protocol (MCP) server acts as a crucial intermediary layer for several reasons:
+
+1.  **Abstraction:** It hides the complexities of the underlying Google Forms API from the CamelAI Agent. The Agent doesn't need to know the specific endpoints, authentication methods, or request/response formats of the Google API. It only needs to know the simplified MCP tool schema (e.g., `create_form`, `add_question`).
+2.  **Modularity & Reusability:** The Agent can be designed to interact with any service that exposes an MCP interface. If you wanted to add support for another form service (e.g., Typeform), you could create a separate MCP server for it, and the Agent could potentially use it with minimal changes, just by learning the new MCP tool schema.
+3.  **Standardization:** MCP provides a standard way for AI models/agents to interact with external tools and APIs. This promotes interoperability.
+4.  **Security & Control:** The MCP server can enforce policies, manage API keys securely, handle rate limiting, and provide a controlled gateway to the external API, rather than embedding sensitive credentials or complex logic directly within the agent.
+5.  **Maintainability:** Separating the API interaction logic (MCP Server) from the natural language understanding and planning logic (Agent) makes the system easier to maintain and update. Changes to the Google Forms API only require updates to the MCP server, not the Agent itself.
+
 ## Prerequisites
 
 - Docker and Docker Compose
