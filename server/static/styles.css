@@ -10,7 +10,12 @@
     --warning-color: #ffa502;
     --success-color: #2ed573;
     --muted-color: #747d8c;
-    --flow-line-color: #414141;
+    --flow-line-color: #333333;
+    --flow-node-border: #444444;
+    --frontend-color: #00ccff;
+    --agent-color: #00ff9d;
+    --mcp-color: #ff9f43;
+    --google-color: #ff6b81;
 }
 
 body {
@@ -160,39 +165,97 @@ body {
 
 /* Flow Visualization */
 .flow-panel {
-    height: calc(100vh - 150px);
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 20px;
 }
 
 .flow-container {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     align-items: center;
+    justify-content: center;
+    width: 100%;
     padding: 20px 0;
+    position: relative;
 }
 
 .node {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin: 10px 0;
     position: relative;
-    margin: 15px 0;
+    z-index: 2;
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.node:hover {
+    transform: scale(1.05);
 }
 
 .node-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background-color: #333;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background: var(--panel-bg);
+    border: 2px solid var(--flow-node-border);
     position: relative;
-    border: 2px solid var(--panel-border);
-    z-index: 2;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* Add highlighted state */
+.node.highlighted .node-icon {
+    transform: scale(1.1);
+    border-width: 3px;
+}
+
+/* Active state */
+.node.active .node-icon {
+    border-width: 3px;
+    animation: pulse 1.5s infinite;
+}
+
+#frontendNode .node-icon {
+    border-color: var(--frontend-color);
+}
+
+#agentNode .node-icon {
+    border-color: var(--agent-color);
+}
+
+#mcpNode .node-icon {
+    border-color: var(--mcp-color);
+}
+
+#googleNode .node-icon {
+    border-color: var(--google-color);
+}
+
+#frontendNode.active .node-icon {
+    border-color: var(--frontend-color);
+    box-shadow: 0 0 15px var(--frontend-color);
+}
+
+#agentNode.active .node-icon {
+    border-color: var(--agent-color);
+    box-shadow: 0 0 15px var(--agent-color);
+}
+
+#mcpNode.active .node-icon {
+    border-color: var(--mcp-color);
+    box-shadow: 0 0 15px var(--mcp-color);
+}
+
+#googleNode.active .node-icon {
+    border-color: var(--google-color);
+    box-shadow: 0 0 15px var(--google-color);
 }
 
 .node-glow {
@@ -208,6 +271,16 @@ body {
     margin-top: 8px;
     font-size: 0.9rem;
     color: var(--muted-color);
+    transition: color 0.3s ease;
+}
+
+.active .node-label {
+    color: var(--text-color);
+    font-weight: bold;
+}
+
+.highlighted .node-label {
+    color: var(--highlight-color);
 }
 
 .flow-line {
@@ -216,6 +289,13 @@ body {
     background-color: var(--flow-line-color);
     position: relative;
     z-index: 1;
+    transition: all 0.3s ease;
+}
+
+.flow-line.active {
+    background-color: var(--highlight-color);
+    box-shadow: 0 0 10px 2px var(--highlight-color);
+    animation: lineGlow 1.5s infinite;
 }
 
 .flow-particle-container {
@@ -224,7 +304,20 @@ body {
     left: -2px;
     width: 7px;
     height: 100%;
-    overflow: hidden;
+    overflow: visible;
+}
+
+.flow-particle {
+    border-radius: 50%;
+    position: absolute;
+    transition: top 0.8s ease-out, opacity 0.8s ease-out;
+}
+
+/* Error state */
+.node.error .node-icon {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 15px var(--danger-color);
+    animation: errorPulse 1.5s infinite;
 }
 
 /* Result Panel */
@@ -314,25 +407,46 @@ body {
 /* Animations */
 @keyframes pulse {
     0% {
+        transform: scale(1);
         box-shadow: 0 0 0 0 rgba(0, 204, 255, 0.7);
     }
-    70% {
+    50% {
+        transform: scale(1.05);
         box-shadow: 0 0 0 10px rgba(0, 204, 255, 0);
     }
     100% {
-        box-shadow: 0 0 0 0 rgba(0, 204, 255, 0);
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(0, 204, 255, 0.7);
     }
 }
 
-@keyframes glow {
+@keyframes errorPulse {
     0% {
-        box-shadow: 0 0 5px 2px rgba(0, 204, 255, 0.3);
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
     }
     50% {
-        box-shadow: 0 0 20px 2px rgba(0, 204, 255, 0.6);
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(255, 71, 87, 0);
     }
     100% {
-        box-shadow: 0 0 5px 2px rgba(0, 204, 255, 0.3);
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
+    }
+}
+
+@keyframes lineGlow {
+    0% {
+        opacity: 0.7;
+        box-shadow: 0 0 5px 1px var(--highlight-color);
+    }
+    50% {
+        opacity: 1;
+        box-shadow: 0 0 10px 2px var(--highlight-color);
+    }
+    100% {
+        opacity: 0.7;
+        box-shadow: 0 0 5px 1px var(--highlight-color);
     }
 }
 
@@ -342,6 +456,10 @@ body {
 
 .active .node-glow {
     animation: glow 1.5s infinite;
+}
+
+.node.pulse {
+    animation: nodePulse 1s infinite;
 }
 
 /* List group customization */
@@ -367,4 +485,35 @@ body {
     background-color: #fce8e6; /* Light red */
     color: #d93025; /* Google red */
     border: 1px solid #f9d6d3;
+}
+
+/* Add styles for the stage indicator */
+.stage-indicator {
+    background-color: #252525;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+    text-align: center;
+    border: 1px solid var(--panel-border);
+}
+
+#stageIndicator {
+    font-weight: 500;
+    color: var(--highlight-color);
+}
+
+/* Add styles for highlighted nodes */
+.node.highlighted {
+    transform: scale(1.08);
+}
+
+.node.highlighted .node-icon {
+    border-width: 3px;
+    border-color: var(--highlight-color);
+    box-shadow: 0 0 10px var(--highlight-color);
+}
+
+.node.highlighted .node-label {
+    color: var(--highlight-color);
+    font-weight: 500;
 }

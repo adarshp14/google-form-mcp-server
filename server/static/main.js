@@ -1,7 +1,36 @@
 /**
- * Main JavaScript for Google Forms MCP Server UI
- * Handles UI interactions, API calls, and visualization updates
+ * Google Forms MCP Server
+ * Main JavaScript file for handling server interactions, UI updates, and flow visualization
  */
+
+// State management
+const state = {
+    isConnected: false,
+    currentForm: null,
+    currentTransaction: null,
+    requestInProgress: false,
+    currentStage: null, // Tracks the current stage in the flow
+    questions: []
+};
+
+// Stages in the flow
+const STAGES = {
+    IDLE: 'idle',
+    FRONTEND: 'frontend',
+    AGENT: 'agent',
+    MCP: 'mcp',
+    GOOGLE: 'google',
+    COMPLETE: 'complete',
+    ERROR: 'error'
+};
+
+// API endpoints
+const API = {
+    health: '/api/health',
+    form_request: '/api/form_request',
+    agent_proxy: '/api/agent_proxy',
+    form_status: '/api/form_status'
+};
 
 // DOM Elements
 const elements = {
@@ -9,34 +38,19 @@ const elements = {
     statusText: document.getElementById('statusText'),
     requestInput: document.getElementById('requestInput'),
     sendRequestBtn: document.getElementById('sendRequestBtn'),
-    demoBtns: document.querySelectorAll('.demo-btn'),
     formResult: document.getElementById('formResult'),
     formTitle: document.getElementById('formTitle'),
     formViewLink: document.getElementById('formViewLink'),
     formEditLink: document.getElementById('formEditLink'),
     questionsList: document.getElementById('questionsList'),
-    packetLog: document.getElementById('packetLog')
+    packetLog: document.getElementById('packetLog'),
+    demoBtns: document.querySelectorAll('.demo-btn'),
+    stageIndicator: document.getElementById('stageIndicator')
 };
 
 // Templates
 const templates = {
     packetEntry: document.getElementById('packetTemplate')
-};
-
-// API endpoints
-const API = {
-    process: '/api/process',
-    schema: '/api/schema',
-    health: '/api/health',
-    agent_proxy: '/api/agent_proxy'
-};
-
-// State
-let state = {
-    connected: false,
-    currentForm: null,
-    currentTransaction: null,
-    questions: []
 };
 
 /**
@@ -49,31 +63,106 @@ function init() {
     // Check server connection
     checkServerConnection();
     
-    // Show connection status
-    updateConnectionStatus(false, 'Connecting...');
+    // Initialize stage
+    updateStage(STAGES.IDLE);
     
-    console.log('Google Forms MCP Server UI initialized');
+    // Pulse frontend node on initial load to indicate entry point
+    setTimeout(() => {
+        if (window.flowAnimator) {
+            window.flowAnimator.pulseNode('frontend', 3000);
+        }
+    }, 1000);
 }
 
 /**
- * Set up event listeners for UI elements
+ * Update the current stage in the flow
+ * @param {string} stage - The current stage
+ */
+function updateStage(stage) {
+    state.currentStage = stage;
+    
+    // Update visual indication of current stage
+    if (window.flowAnimator) {
+        // Highlight the appropriate node based on stage
+        switch (stage) {
+            case STAGES.FRONTEND:
+                window.flowAnimator.highlightNode('frontend');
+                break;
+            case STAGES.AGENT:
+                window.flowAnimator.highlightNode('agent');
+                break;
+            case STAGES.MCP:
+                window.flowAnimator.highlightNode('mcp');
+                break;
+            case STAGES.GOOGLE:
+                window.flowAnimator.highlightNode('google');
+                break;
+            default:
+                // Clear highlights for IDLE, COMPLETE, ERROR
+                Object.keys(window.flowAnimator.nodes).forEach(nodeName => {
+                    window.flowAnimator.nodes[nodeName].classList.remove('highlighted');
+                });
+                break;
+        }
+    }
+    
+    // Update stage indicator text if present
+    if (elements.stageIndicator) {
+        let stageText = '';
+        switch (stage) {
+            case STAGES.IDLE:
+                stageText = 'Ready for request';
+                break;
+            case STAGES.FRONTEND:
+                stageText = 'Processing in frontend';
+                break;
+            case STAGES.AGENT:
+                stageText = 'Agent processing request';
+                break;
+            case STAGES.MCP:
+                stageText = 'MCP Server building form';
+                break;
+            case STAGES.GOOGLE:
+                stageText = 'Interacting with Google Forms';
+                break;
+            case STAGES.COMPLETE:
+                stageText = 'Form creation complete';
+                break;
+            case STAGES.ERROR:
+                stageText = 'Error occurred';
+                break;
+            default:
+                stageText = 'Processing...';
+        }
+        elements.stageIndicator.textContent = stageText;
+    }
+}
+
+/**
+ * Set up event listeners
  */
 function setupEventListeners() {
-    // Send request button
-    elements.sendRequestBtn.addEventListener('click', handleSendRequest);
+    if (elements.sendRequestBtn) {
+        elements.sendRequestBtn.addEventListener('click', handleSendRequest);
+    }
     
     // Demo buttons
     elements.demoBtns.forEach(btn => {
         btn.addEventListener('click', function() {
-            const request = this.getAttribute('data-request');
-            elements.requestInput.value = request;
-            handleSendRequest();
+            const requestText = this.getAttribute('data-request');
+            if (elements.requestInput && requestText) {
+                elements.requestInput.value = requestText;
+                // Automatically trigger request after a short delay
+                setTimeout(() => {
+                    handleSendRequest();
+                }, 500);
+            }
         });
     });
 }
 
 /**
- * Check server connection status
+ * Check if server is connected
  */
 async function checkServerConnection() {
     try {
@@ -81,95 +170,138 @@ async function checkServerConnection() {
         if (response.ok) {
             const data = await response.json();
             updateConnectionStatus(true, `Connected (v${data.version})`);
+            return true;
         } else {
-            updateConnectionStatus(false, 'Connection Error');
+            updateConnectionStatus(false, 'Server Error');
+            return false;
         }
     } catch (error) {
         console.error('Server connection error:', error);
-        updateConnectionStatus(false, 'Connection Error');
+        updateConnectionStatus(false, 'Disconnected');
+        return false;
     }
 }
 
 /**
  * Update connection status indicator
- * @param {boolean} isConnected - Whether the server is connected
- * @param {string} statusMessage - Status message to display
  */
 function updateConnectionStatus(isConnected, statusMessage) {
-    state.connected = isConnected;
+    state.isConnected = isConnected;
     
-    elements.statusDot.className = 'status-dot ' + (isConnected ? 'connected' : 'error');
-    elements.statusText.textContent = statusMessage;
+    if (elements.statusDot) {
+        elements.statusDot.className = 'status-dot ' + (isConnected ? 'connected' : 'error');
+    }
     
-    elements.sendRequestBtn.disabled = !isConnected;
+    if (elements.statusText) {
+        elements.statusText.textContent = statusMessage || (isConnected ? 'Connected' : 'Disconnected');
+    }
 }
 
 /**
- * Handle sending a request to the agent
+ * Handle the form request submission
  */
 async function handleSendRequest() {
-    const requestText = elements.requestInput.value.trim(); // Get raw text
-    if (!requestText) {
+    // Validation & state check
+    if (!elements.requestInput || !elements.requestInput.value.trim()) {
         alert('Please enter a request');
         return;
     }
     
-    if (!state.connected) {
-        alert('Server is not connected');
+    if (state.requestInProgress) {
         return;
     }
     
-    // Clear previous results
+    // Reset any previous results
     resetResults();
     
+    // Update UI
+    state.requestInProgress = true;
+    elements.sendRequestBtn.disabled = true;
+    elements.sendRequestBtn.textContent = 'Processing...';
+    
+    // Get the request text
+    const requestText = elements.requestInput.value.trim();
+    
+    // Log the user request
+    logPacket({ request_text: requestText }, 'User Request');
+    
     try {
-        elements.sendRequestBtn.disabled = true;
-        elements.sendRequestBtn.textContent = 'Processing...';
+        // Start at frontend
+        updateStage(STAGES.FRONTEND);
         
-        // Log the natural language request
-        logPacket({
-            transaction_id: 'user-request',
-            request: requestText
-        }, 'User Request');
+        // Pulse frontend node to start the flow
+        window.flowAnimator.pulseNode('frontend', 1000);
         
-        // Animation: Frontend -> Agent
+        // Animate the request flow from frontend to agent
         await window.flowAnimator.animateFlow('frontend', 'agent', 'outgoing');
-
-        // Send the raw text request to the Agent server
+        
+        // Update stage to agent
+        updateStage(STAGES.AGENT);
+        
+        // Process the request with the agent
         const agentResponse = await processWithAgent(requestText);
-
-        // --- Agent processing and MCP calls happen on the backend --- 
-        // --- The agentResponse should contain the final result --- 
-
-        // Log the agent's process steps if returned
-        if (agentResponse.log_entries && Array.isArray(agentResponse.log_entries)){
-             logAgentSteps(agentResponse.log_entries);
+        
+        // Log agent proxy response
+        logPacket(agentResponse, 'Agent Processing');
+        
+        if (agentResponse.status === 'error') {
+            // Show error animation in the flow diagram
+            window.flowAnimator.animateErrorFlow('agent');
+            updateStage(STAGES.ERROR);
+            throw new Error(agentResponse.message || 'Agent processing failed');
         }
-
-        // Animation: Agent -> Frontend (assuming agent handles intermediate steps)
+        
+        // Continue flow to MCP server
+        await window.flowAnimator.animateFlow('agent', 'mcp', 'outgoing');
+        updateStage(STAGES.MCP);
+        
+        // Simulate MCP server processing time
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Continue flow to Google Forms
+        await window.flowAnimator.animateFlow('mcp', 'google', 'outgoing');
+        updateStage(STAGES.GOOGLE);
+        
+        // Simulate Google Forms API interaction time
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Begin response flow
+        // From Google back to MCP
+        await window.flowAnimator.animateFlow('google', 'mcp', 'incoming');
+        updateStage(STAGES.MCP);
+        
+        // From MCP back to agent
+        await window.flowAnimator.animateFlow('mcp', 'agent', 'incoming');
+        updateStage(STAGES.AGENT);
+        
+        // Final response from agent to frontend
         await window.flowAnimator.animateFlow('agent', 'frontend', 'incoming');
-
+        updateStage(STAGES.FRONTEND);
+        
         // Check agent response status
         if (agentResponse.status === 'success' && agentResponse.result) {
-             // Assuming the agent returns the final form details in agentResponse.result.final_form
-             // Or potentially just the success message and logs the details server-side.
-             // Let's adapt based on what the agent will return.
-             // For now, let's assume it returns the created form details directly.
             if (agentResponse.result.form_id) { 
                 // Log the final successful response from the agent/MCP flow
                 logPacket(agentResponse, 'Final Response');
+                
                 // Update the UI with the final form details
-                // We need to determine what structure the agent will return.
-                // Let's assume it returns the standard form result structure.
-                // We might need to adjust getQuestionsFromRequest or have the agent return questions.
                 updateFormResult(agentResponse.result, agentResponse.result.questions || []); 
+                
+                // Update stage to complete
+                updateStage(STAGES.COMPLETE);
             } else {
-                 logPacket(agentResponse, 'Agent Response (No Form)');
-                 alert('Agent processed the request, but no form details were returned.');
+                logPacket(agentResponse, 'Agent Response (No Form)');
+                alert('Agent processed the request, but no form details were returned.');
+                updateStage(STAGES.ERROR);
             }
         } else {
             // Log the error response from the agent
             logPacket(agentResponse, 'Agent Error');
+            
+            // Show error animation in the flow diagram
+            window.flowAnimator.animateErrorFlow('agent');
+            updateStage(STAGES.ERROR);
+            
             throw new Error(agentResponse.message || 'Agent processing failed');
         }
         
@@ -177,12 +309,22 @@ async function handleSendRequest() {
         console.error('Error during form creation process:', error);
         alert(`An error occurred: ${error.message}`);
         // Log error packet if possible
-         logPacket({ error: error.message }, 'Processing Error');
+        logPacket({ error: error.message }, 'Processing Error');
+        updateStage(STAGES.ERROR);
     } finally {
         elements.sendRequestBtn.disabled = false;
-        elements.sendRequestBtn.textContent = 'Send Request';
-        // Reset animations or UI states if needed
-        window.flowAnimator.resetAll(); 
+        elements.sendRequestBtn.textContent = 'Process Request';
+        state.requestInProgress = false;
+        
+        // Reset flow animator if there was an error
+        if (state.currentStage === STAGES.ERROR) {
+            setTimeout(() => {
+                if (window.flowAnimator) {
+                    window.flowAnimator.resetAll();
+                    updateStage(STAGES.IDLE);
+                }
+            }, 3000);
+        }
     }
 }
 
@@ -315,6 +457,14 @@ function resetResults() {
     state.currentForm = null;
     state.currentTransaction = null;
     state.questions = [];
+    
+    // Reset animation state
+    if (window.flowAnimator) {
+        window.flowAnimator.resetAll();
+    }
+    
+    // Reset to idle state
+    updateStage(STAGES.IDLE);
 }
 
 /**
@@ -348,6 +498,9 @@ function updateFormResult(formData, questions) {
     
     // Show the form result
     elements.formResult.classList.remove('hidden');
+    
+    // Pulse frontend node to indicate completion
+    window.flowAnimator.pulseNode('frontend');
 }
 
 // Initialize the application when the DOM is loaded

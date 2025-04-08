@@ -30,6 +30,11 @@ class FlowAnimator {
         // Animation state
         this.activeAnimations = [];
         this.isAnimating = false;
+        this.currentActiveNode = null;
+        this.currentActiveLine = null;
+        
+        // Animation intervals for continuous particle generation
+        this.particleIntervals = {};
     }
     
     /**
@@ -38,12 +43,49 @@ class FlowAnimator {
      */
     activateNode(nodeName) {
         if (this.nodes[nodeName]) {
+            // Deactivate previous node if exists
+            if (this.currentActiveNode && this.nodes[this.currentActiveNode]) {
+                this.nodes[this.currentActiveNode].classList.remove('active');
+            }
+            
             // Add active class to the node
             this.nodes[nodeName].classList.add('active');
+            this.currentActiveNode = nodeName;
             
             // Return a cleanup function
             return () => {
-                this.nodes[nodeName].classList.remove('active');
+                // Only remove active class if this is still the current active node
+                if (this.currentActiveNode === nodeName) {
+                    this.nodes[nodeName].classList.remove('active');
+                    this.currentActiveNode = null;
+                }
+            };
+        }
+        return () => {};
+    }
+    
+    /**
+     * Activate a flow line
+     * @param {string} lineName - The name of the line to activate
+     */
+    activateLine(lineName) {
+        if (this.lines[lineName]) {
+            // Deactivate previous line if exists
+            if (this.currentActiveLine && this.lines[this.currentActiveLine]) {
+                this.lines[this.currentActiveLine].classList.remove('active');
+            }
+            
+            // Add active class to the line
+            this.lines[lineName].classList.add('active');
+            this.currentActiveLine = lineName;
+            
+            // Return a cleanup function
+            return () => {
+                // Only remove active class if this is still the current active line
+                if (this.currentActiveLine === lineName) {
+                    this.lines[lineName].classList.remove('active');
+                    this.currentActiveLine = null;
+                }
             };
         }
         return () => {};
@@ -60,6 +102,7 @@ class FlowAnimator {
         if (!line) return null;
         
         const container = line.querySelector('.flow-particle-container');
+        if (!container) return null;
         
         // Create particle element
         const particle = document.createElement('div');
@@ -101,10 +144,59 @@ class FlowAnimator {
         
         // Remove particle when animation completes
         animation.onfinish = () => {
-            container.removeChild(particle);
+            if (container.contains(particle)) {
+                container.removeChild(particle);
+            }
         };
         
         return animation;
+    }
+    
+    /**
+     * Start continuous particle animation on a line
+     * @param {string} lineName - The line to animate
+     * @param {string} direction - Direction of flow
+     */
+    startContinuousParticles(lineName, direction) {
+        // Clear any existing interval for this line
+        this.stopContinuousParticles(lineName);
+        
+        // Create new interval
+        const interval = setInterval(() => {
+            this.createParticle(lineName, direction, 800);
+        }, 200);
+        
+        // Store the interval
+        this.particleIntervals[lineName] = interval;
+    }
+    
+    /**
+     * Stop continuous particle animation on a line
+     * @param {string} lineName - The line to stop animating
+     */
+    stopContinuousParticles(lineName) {
+        if (this.particleIntervals[lineName]) {
+            clearInterval(this.particleIntervals[lineName]);
+            delete this.particleIntervals[lineName];
+            
+            // Clear any remaining particles
+            const line = this.lines[lineName];
+            if (line) {
+                const container = line.querySelector('.flow-particle-container');
+                if (container) {
+                    container.innerHTML = '';
+                }
+            }
+        }
+    }
+    
+    /**
+     * Stop all continuous particle animations
+     */
+    stopAllContinuousParticles() {
+        Object.keys(this.particleIntervals).forEach(lineName => {
+            this.stopContinuousParticles(lineName);
+        });
     }
     
     /**
@@ -133,33 +225,36 @@ class FlowAnimator {
             return;
         }
         
+        // Stop any existing continuous animations
+        this.stopAllContinuousParticles();
+        
         // Activate source node
         const cleanupSource = this.activateNode(fromNode);
         
-        // Create and animate particle
-        const particleAnimation = this.createParticle(
-            lineName, 
-            direction,
-            800 // Duration in ms
-        );
+        // Activate the flow line
+        const cleanupLine = this.activateLine(lineName);
         
-        // Create promise that resolves when animation finishes
+        // Start continuous particles
+        this.startContinuousParticles(lineName, direction);
+        
+        // Create promise that resolves when animation completes
         return new Promise(resolve => {
             setTimeout(() => {
                 // Activate target node
                 const cleanupTarget = this.activateNode(toNode);
                 
+                // Stop continuous particles
+                this.stopContinuousParticles(lineName);
+                
                 // Cleanup source node after delay
-                setTimeout(() => {
-                    cleanupSource();
-                    
-                    // Cleanup target node after another delay
-                    setTimeout(() => {
-                        cleanupTarget();
-                        resolve();
-                    }, 800);
-                }, 400);
-            }, 500);
+                cleanupSource();
+                
+                // Cleanup line
+                cleanupLine();
+                
+                // Resolve the promise
+                resolve();
+            }, 1500); // Longer wait to show the flow more clearly
         });
     }
     
@@ -251,7 +346,76 @@ class FlowAnimator {
             }, 3000);
         }
     }
+    
+    /**
+     * Reset all animations and active states
+     */
+    resetAll() {
+        // Stop all continuous particles
+        this.stopAllContinuousParticles();
+        
+        // Reset nodes
+        Object.values(this.nodes).forEach(node => {
+            node.classList.remove('active');
+            node.classList.remove('error');
+            node.classList.remove('pulse');
+        });
+        
+        // Reset lines
+        Object.values(this.lines).forEach(line => {
+            line.classList.remove('active');
+            const container = line.querySelector('.flow-particle-container');
+            if (container) {
+                container.innerHTML = '';
+            }
+        });
+        
+        this.currentActiveNode = null;
+        this.currentActiveLine = null;
+        this.isAnimating = false;
+    }
+    
+    /**
+     * Pulse animation for a specific node
+     * @param {string} nodeName - Name of the node to pulse
+     * @param {number} duration - Duration in milliseconds
+     */
+    pulseNode(nodeName, duration = 2000) {
+        const node = this.nodes[nodeName];
+        if (!node) return;
+        
+        node.classList.add('pulse');
+        
+        setTimeout(() => {
+            node.classList.remove('pulse');
+        }, duration);
+    }
+    
+    /**
+     * Highlight a specific node to show it's the current active component
+     * @param {string} nodeName - Name of the node to highlight
+     */
+    highlightNode(nodeName) {
+        // First clear any existing highlights
+        Object.keys(this.nodes).forEach(name => {
+            this.nodes[name].classList.remove('highlighted');
+        });
+        
+        // Set the new highlight
+        if (this.nodes[nodeName]) {
+            this.nodes[nodeName].classList.add('highlighted');
+        }
+    }
 }
 
-// Create global animator instance
-window.flowAnimator = new FlowAnimator();
+// Initialize flow animator when document loads
+document.addEventListener('DOMContentLoaded', function() {
+    window.flowAnimator = new FlowAnimator();
+    
+    // For demo purposes, animate the request flow on load to demonstrate functionality
+    setTimeout(() => {
+        if (window.flowAnimator) {
+            window.flowAnimator.animateRequestResponseFlow();
+        }
+    }, 2000);
+});
