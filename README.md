@@ -51,12 +51,12 @@ graph TD
         D{{Google Forms API}}
     end
     
-    A -->|1. User enters: Create feedback form| B
-    B -->|2. Interprets request and plans tool call\nSends: tool=create_form, title=Feedback| C
-    C -->|3. Translates tool call to API request\nCalls: POST /v1/forms| D
-    D -->|4. Executes request\nReturns: formId and URL| C
-    C -->|5. Processes API response\nStatus: success, includes result| B
-    B -->|6. Formats final result\nSends: status update to UI| A
+    A -->|"1. User enters: Create feedback form"| B
+    B -->|"2. Interprets request, sends tool call"| C
+    C -->|"3. Translates to API request"| D
+    D -->|"4. Returns formId and URL"| C
+    C -->|"5. Processes API response"| B
+    B -->|"6. Formats final result to UI"| A
     
     style B fill:#f9d423,stroke:#333,stroke-width:2px,color:#333
     style C fill:#8ecae6,stroke:#333,stroke-width:2px,color:#333
